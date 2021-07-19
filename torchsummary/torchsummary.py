@@ -38,7 +38,9 @@ def get_recursive_shape(object_with_shape):
     elif isinstance(object_with_shape, tuple) and not isinstance(object_with_shape[0], int):
         return tuple(map(get_recursive_shape, object_with_shape))
     else:
-        return object_with_shape.size()
+        size = object_with_shape.size()
+        size = (-1, *size)
+        return size
 
 
 def get_layer_formatted_summary(layer_name, layer):
