@@ -39,7 +39,7 @@ def get_recursive_shape(object_with_shape):
         return tuple(map(get_recursive_shape, object_with_shape))
     else:
         size = object_with_shape.size()
-        size = (-1, *size)
+        size = (-1, *size[1:])
         return size
 
 
