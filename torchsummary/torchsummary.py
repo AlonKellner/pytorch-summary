@@ -22,19 +22,19 @@ def get_recursive_total_size(object):
         return long_sum(map(get_recursive_total_size, object.values()))
     elif isinstance(object, int):
         return object
-    elif isinstance(object[0], (list, tuple)):
+    elif isinstance(object, tuple) and not isinstance(object[0], int):
         return long_sum(map(get_recursive_total_size, object))
     else:
         return long_prod(object)
 
 
 def get_recursive_shape(object):
-    if isinstance(object, list):
-        return list(map(get_recursive_shape, object))
-    elif isinstance(object, tuple):
-        return tuple(map(get_recursive_shape, object))
-    elif isinstance(object, dict):
+    if isinstance(object, dict):
         return {key: get_recursive_shape(sub_object) for key, sub_object in object.items()}
+    elif isinstance(object, list):
+        return list(map(get_recursive_shape, object))
+    elif isinstance(object, tuple) and not isinstance(object[0], int):
+        return tuple(map(get_recursive_shape, object))
     else:
         return object.size()
 
@@ -49,26 +49,29 @@ def get_details_formatted_summary(details):
 
 
 def get_recursive_layer_details(layer_name, output_shape, nb_params):
-    if isinstance(output_shape, list):
-        sub_lines = [get_recursive_layer_details('', sub_output, '') for sub_output in output_shape]
-        return [get_layer_details(layer_name, 'list', nb_params),
-                get_layer_details('', '[', ''),
-                *sub_lines,
-                get_layer_details('', ']', '')]
-    elif isinstance(output_shape, tuple):
-        sub_lines = [get_recursive_layer_details('', sub_output, '') for sub_output in output_shape]
-        return [get_layer_details(layer_name, 'tuple', nb_params),
-                get_layer_details('', '(', ''),
-                *sub_lines,
-                get_layer_details('', ')', '')]
-    elif isinstance(output_shape, dict):
+    if isinstance(output_shape, dict):
         sub_lines = [(get_recursive_layer_details(key+': ', sub_output, '')) for key, sub_output in output_shape.items()]
+        sub_lines = [line for lines in sub_lines for line in lines]
         return [get_layer_details(layer_name, 'dict', nb_params),
                 get_layer_details('', '{', ''),
                 *sub_lines,
                 get_layer_details('', '}', '')]
+    elif isinstance(output_shape, list):
+        sub_lines = [get_recursive_layer_details('', sub_output, '') for sub_output in output_shape]
+        sub_lines = [line for lines in sub_lines for line in lines]
+        return [get_layer_details(layer_name, 'list', nb_params),
+                get_layer_details('', '[', ''),
+                *sub_lines,
+                get_layer_details('', ']', '')]
+    elif isinstance(output_shape, tuple) and not isinstance(output_shape[0], int):
+        sub_lines = [get_recursive_layer_details('', sub_output, '') for sub_output in output_shape]
+        sub_lines = [line for lines in sub_lines for line in lines]
+        return [get_layer_details(layer_name, 'tuple', nb_params),
+                get_layer_details('', '(', ''),
+                *sub_lines,
+                get_layer_details('', ')', '')]
     else:
-        return get_layer_details(layer_name, output_shape, nb_params)
+        return [get_layer_details(layer_name, output_shape, nb_params)]
 
 
 def get_layer_details(layer_name, output_shape, nb_params):
