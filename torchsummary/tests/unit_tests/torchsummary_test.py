@@ -4,7 +4,8 @@ from torchsummary.tests.test_models.test_model import \
     SingleInputNet, \
     MultipleInputNet, \
     MultipleInputNetDifferentDtypes, \
-    MultipleOutputNet
+    MultipleOutputNet, \
+    ParameterReuseNet
 import torch
 
 gpu_if_available = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -17,6 +18,13 @@ class torchsummaryTests(unittest.TestCase):
         total_params, trainable_params = summary(model, input, device="cpu")
         self.assertEqual(total_params, 21840)
         self.assertEqual(trainable_params, 21840)
+
+    def test_parameter_reuse(self):
+        model = ParameterReuseNet()
+        input = 100
+        total_params, trainable_params = summary(model, input, device="cpu")
+        self.assertEqual(total_params, 10100)
+        self.assertEqual(trainable_params, 10100)
 
     def test_multiple_input(self):
         model = MultipleInputNet()

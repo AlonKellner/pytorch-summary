@@ -21,6 +21,17 @@ class SingleInputNet(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
+class ParameterReuseNet(nn.Module):
+    def __init__(self):
+        super(ParameterReuseNet, self).__init__()
+        self.layer = nn.Linear(100, 100)
+
+    def forward(self, x):
+        for i in range(10):
+            x = self.layer(x)
+        return F.log_softmax(x, dim=1)
+
+
 class MultipleInputNet(nn.Module):
     def __init__(self):
         super(MultipleInputNet, self).__init__()

@@ -43,12 +43,19 @@ def get_recursive_shape(object_with_shape):
         return size
 
 
-def get_layer_formatted_summary(layer_name, layer):
-    return get_layer_formatted_summary_explicit(layer_name, layer['output_shape'], layer['nb_params'])
+def get_layer_formatted_summary(layer):
+    return get_layer_formatted_summary_explicit(layer['name_display'],
+                                                layer['output_shape'],
+                                                layer['nb_params'],
+                                                layer['nb_usages'])
 
 
-def get_layer_formatted_summary_explicit(layer_name, output_shape, nb_params):
-    details = get_recursive_layer_details(layer_name, output_shape, '{0:,}'.format(nb_params))
+def get_layer_formatted_summary_explicit(layer_name, output_shape, nb_params, nb_usages):
+    details = get_recursive_layer_details(
+        layer_name,
+        output_shape,
+        '{0:,}'.format(nb_params),
+        ('×' + str(nb_usages)) if nb_usages > 1 else '')
     return get_details_formatted_summary(details)
 
 
@@ -56,37 +63,38 @@ def get_details_formatted_summary(details):
     return '\n'.join([format_layer_summary(*layer_details) for layer_details in details])
 
 
-def get_recursive_layer_details(layer_name, output_shape, nb_params):
+def get_recursive_layer_details(layer_name, output_shape, nb_params, nb_usages):
     if isinstance(output_shape, dict):
-        sub_lines = [(get_recursive_layer_details(key+': ', sub_output, ''))
+        sub_lines = [(get_recursive_layer_details(key+': ', sub_output, '', ''))
                      for key, sub_output in output_shape.items()]
         sub_lines = [line for lines in sub_lines for line in lines]
-        return [get_layer_details(layer_name, 'dict', nb_params),
-                get_layer_details('', '{', ''),
+        return [get_layer_details(layer_name, 'dict', nb_params, nb_usages),
+                get_layer_details('', '{', '', ''),
                 *sub_lines,
-                get_layer_details('', '}', '')]
+                get_layer_details('', '}', '', '')]
     elif isinstance(output_shape, list):
-        sub_lines = [get_recursive_layer_details('', sub_output, '') for sub_output in output_shape]
+        sub_lines = [get_recursive_layer_details('', sub_output, '', '') for sub_output in output_shape]
         sub_lines = [line for lines in sub_lines for line in lines]
-        return [get_layer_details(layer_name, 'list', nb_params),
-                get_layer_details('', '[', ''),
+        return [get_layer_details(layer_name, 'list', nb_params, nb_usages),
+                get_layer_details('', '[', '', ''),
                 *sub_lines,
-                get_layer_details('', ']', '')]
+                get_layer_details('', ']', '', '')]
     elif isinstance(output_shape, tuple) and not isinstance(output_shape[0], int):
-        sub_lines = [get_recursive_layer_details('', sub_output, '') for sub_output in output_shape]
+        sub_lines = [get_recursive_layer_details('', sub_output, '', '') for sub_output in output_shape]
         sub_lines = [line for lines in sub_lines for line in lines]
-        return [get_layer_details(layer_name, 'tuple', nb_params),
-                get_layer_details('', '(', ''),
+        return [get_layer_details(layer_name, 'tuple', nb_params, nb_usages),
+                get_layer_details('', '(', '', ''),
                 *sub_lines,
-                get_layer_details('', ')', '')]
+                get_layer_details('', ')', '', '')]
     else:
-        return [get_layer_details(layer_name, output_shape, nb_params)]
+        return [get_layer_details(layer_name, output_shape, nb_params, nb_usages)]
 
 
-def get_layer_details(layer_name, output_shape, nb_params):
+def get_layer_details(layer_name, output_shape, nb_params, nb_usages):
     return format_layer_name(layer_name), \
            str(output_shape), \
-           nb_params
+           nb_params, \
+           nb_usages
 
 
 def format_layer_name(layer_name):
@@ -95,11 +103,12 @@ def format_layer_name(layer_name):
     return layer_name
 
 
-def format_layer_summary(layer_display, output_shape, nb_params):
-    line_new = "{:>20}      {:<25} {:>15}".format(
+def format_layer_summary(layer_display, output_shape, nb_params, nb_usages=''):
+    line_new = "{:>20}      {:<25} {:>15} {:>10}".format(
         layer_display,
         str(output_shape),
         nb_params,
+        nb_usages
     )
     return line_new
 
@@ -154,13 +163,17 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
 
     def register_hook(module):
         def hook(hooked_module, module_input, output):
+            if hooked_module in full_summary:
+                full_summary[hooked_module]['nb_usages'] += 1
+                return
             class_name = str(hooked_module.__class__).split(".")[-1].split("'")[0]
             module_idx = len(full_summary)
 
-            m_key = '{name:s}-{idx:d}'.format(name=class_name, idx=module_idx + 1)
             layer_summary = collections.OrderedDict()
+            layer_summary["name_display"] = '{name:s}-{idx:d}'.format(name=class_name, idx=module_idx + 1)
             layer_summary["input_shape"] = get_recursive_shape(module_input)
             layer_summary["output_shape"] = get_recursive_shape(output)
+            layer_summary["nb_usages"] = 1
 
             params = 0
             params_trainable = 0
@@ -170,7 +183,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
                 params_trainable += nb_param if param.requires_grad else 0
             layer_summary["nb_params"] = params
             layer_summary["nb_params_trainable"] = params_trainable
-            full_summary[m_key] = layer_summary
+            full_summary[hooked_module] = layer_summary
 
         if (not isinstance(module, nn.Sequential) and not isinstance(module, nn.ModuleList)):
             hooks.append(module.register_forward_hook(hook))
@@ -179,6 +192,8 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     if isinstance(input_size, (list, tuple)) and len(input_size) > 0:
         if not isinstance(input_size[0], (list, tuple)):
             input_size = (input_size, )
+    elif isinstance(input_size, int):
+        input_size = ((input_size,),)
     else:
         raise ValueError('The argument "input_size" is not a tuple of a sequence of tuple. Given "{0}".'
                          .format(input_size))
@@ -211,27 +226,29 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     for h in hooks:
         h.remove()
 
-    summary_str += "--------------------------------------------------------------------" + "\n"
-    line_new = format_layer_summary("Layer (type)", "Result Shape", "Param #")
+    line_length = 79
+    summary_str += '-'*line_length + "\n"
+    line_new = format_layer_summary("Layer (type)", "Result Shape", "Param #", "Usage #")
     summary_str += line_new + "\n"
-    summary_str += "====================================================================" + "\n"
+    summary_str += '='*line_length + "\n"
     for i, current_input in enumerate(x):
         summary_str += get_layer_formatted_summary_explicit('Input-' + chr(65+i),
                                                             get_recursive_shape(current_input),
-                                                            0) \
+                                                            0,
+                                                            1) \
                        + '\n'
     total_params = 0
     total_output = 0
     trainable_params = 0
-    for layer_name in full_summary:
+    for module_summary in full_summary:
         # input_shape, output_shape, trainable, nb_params
-        sum_layer = full_summary[layer_name]
-        line_new = get_layer_formatted_summary(layer_name, sum_layer)
-        total_params += sum_layer["nb_params"]
+        sum_module = full_summary[module_summary]
+        line_new = get_layer_formatted_summary(sum_module)
+        total_params += sum_module["nb_params"]
 
-        output_shape = sum_layer["output_shape"]
+        output_shape = sum_module["output_shape"]
         total_output += get_recursive_total_size(output_shape)
-        trainable_params += sum_layer["nb_params_trainable"]
+        trainable_params += sum_module["nb_params_trainable"]
         summary_str += line_new + "\n"
 
     # assume 4 bytes/number (float on cuda).
@@ -240,15 +257,15 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     total_params_size = abs(total_params * 4. / (1024 ** 2.))
     total_size = total_params_size + total_output_size + total_input_size
 
-    summary_str += "====================================================================" + "\n"
+    summary_str += '='*line_length + "\n"
     summary_str += "Total params: {0:,}".format(total_params) + "\n"
     summary_str += "Trainable params: {0:,}".format(trainable_params) + "\n"
     summary_str += "Non-trainable params: {0:,}".format(total_params - trainable_params) + "\n"
-    summary_str += "--------------------------------------------------------------------" + "\n"
+    summary_str += '-'*line_length + "\n"
     summary_str += "Input size (MB): %0.2f" % total_input_size + "\n"
     summary_str += "Forward/backward pass size (MB): %0.2f" % total_output_size + "\n"
     summary_str += "Params size (MB): %0.2f" % total_params_size + "\n"
     summary_str += "Estimated Total Size (MB): %0.2f" % total_size + "\n"
-    summary_str += "--------------------------------------------------------------------"
+    summary_str += '-'*line_length
     # return summary
     return summary_str, (total_params, trainable_params)
