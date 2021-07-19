@@ -1,6 +1,10 @@
 import unittest
 from torchsummary import summary, summary_string
-from torchsummary.tests.test_models.test_model import SingleInputNet, MultipleInputNet, MultipleInputNetDifferentDtypes
+from torchsummary.tests.test_models.test_model import \
+    SingleInputNet, \
+    MultipleInputNet, \
+    MultipleInputNetDifferentDtypes, \
+    MultipleOutputNet
 import torch
 
 gpu_if_available = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -20,6 +24,14 @@ class torchsummaryTests(unittest.TestCase):
         input2 = (1, 300)
         total_params, trainable_params = summary(
             model, [input1, input2], device="cpu")
+        self.assertEqual(total_params, 31120)
+        self.assertEqual(trainable_params, 31120)
+
+    def test_multiple_output(self):
+        model = MultipleOutputNet()
+        input = (1, 300)
+        total_params, trainable_params = summary(
+            model, input, device="cpu")
         self.assertEqual(total_params, 31120)
         self.assertEqual(trainable_params, 31120)
 
