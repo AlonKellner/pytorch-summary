@@ -39,7 +39,7 @@ def get_recursive_shape(object_with_shape):
         return tuple(map(get_recursive_shape, object_with_shape))
     else:
         size = object_with_shape.size()
-        size = (-1, *size[1:])
+        size = tuple(size[1:])
         return size
 
 
@@ -204,7 +204,8 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
         raise ValueError('The lengths of the arguments "input_size" and "dtypes" does not correspond to each other.')
 
     # batch_size of 2 for batchnorm
-    if batch_size == -1:
+    batch_was_specified = not batch_size == -1
+    if not batch_was_specified:
         batch_size_ = 2
     else:
         batch_size_ = batch_size
@@ -252,6 +253,8 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
         summary_str += line_new + "\n"
 
     # assume 4 bytes/number (float on cuda).
+    batch_size = batch_size if batch_was_specified else 1
+    total_output = total_output * batch_size
     total_input_size = abs(long_sum(list(map(long_prod, input_size))) * batch_size * 4. / (1024 ** 2.))
     total_output_size = abs(2. * total_output * 4. / (1024 ** 2.))  # x2 for gradients
     total_params_size = abs(total_params * 4. / (1024 ** 2.))
@@ -262,6 +265,8 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     summary_str += "Trainable params: {0:,}".format(trainable_params) + "\n"
     summary_str += "Non-trainable params: {0:,}".format(total_params - trainable_params) + "\n"
     summary_str += '-'*line_length + "\n"
+    if batch_was_specified:
+        summary_str += "Computed for batch size: %d" % batch_size + "\n"
     summary_str += "Input size (MB): %0.2f" % total_input_size + "\n"
     summary_str += "Forward/backward pass size (MB): %0.2f" % total_output_size + "\n"
     summary_str += "Params size (MB): %0.2f" % total_params_size + "\n"
