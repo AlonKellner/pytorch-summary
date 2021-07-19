@@ -5,6 +5,7 @@ import torch
 
 gpu_if_available = "cuda:0" if torch.cuda.is_available() else "cpu"
 
+
 class torchsummaryTests(unittest.TestCase):
     def test_single_input(self):
         model = SingleInputNet()
