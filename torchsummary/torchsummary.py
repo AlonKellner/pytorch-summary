@@ -13,7 +13,7 @@ def long_sum(v):
 
 def long_prod(v):
     if not all(map(lambda x: isinstance(x, int), v)):
-        raise ValueError('The long_sum only supports the sequence with all int elements.')
+        raise ValueError('The long_prod only supports the sequence with all int elements.')
     return functools.reduce(lambda x, y: x * y, v)
 
 
@@ -22,6 +22,8 @@ def get_recursive_total_size(object):
         return long_sum(map(get_recursive_total_size, object.values()))
     elif isinstance(object, int):
         return object
+    elif isinstance(object, list):
+        return long_sum(map(get_recursive_total_size, object))
     elif isinstance(object, tuple) and not isinstance(object[0], int):
         return long_sum(map(get_recursive_total_size, object))
     else:
