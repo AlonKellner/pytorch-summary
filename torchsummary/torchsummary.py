@@ -270,7 +270,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     summary_str += "Input size (MB): %0.2f" % total_input_size + "\n"
     summary_str += "Forward/backward pass size (MB): %0.2f" % total_output_size + "\n"
     summary_str += "Params size (MB): %0.2f" % total_params_size + "\n"
-    summary_str += "Estimated Training Size (MB): %0.2f\t(batch size: %d)" % (total_training_size, batch_size) + "\n"
+    summary_str += "Estimated Training Size (MB): %0.2f   (batch size: %d)" % (total_training_size, batch_size) + "\n"
     summary_str += "Estimated Inference Size (MB): %0.2f" % total_size + "\n"
     summary_str += '-'*line_length
     # return summary
