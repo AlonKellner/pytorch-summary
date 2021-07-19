@@ -247,7 +247,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
         total_params += sum_module["nb_params"]
 
         output_shape = sum_module["output_shape"]
-        total_output += get_recursive_total_size(output_shape)
+        total_output += get_recursive_total_size(output_shape)*sum_module['nb_usages']
         trainable_params += sum_module["nb_params_trainable"]
         summary_str += line_new + "\n"
 
