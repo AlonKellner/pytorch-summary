@@ -180,8 +180,8 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
             layer_summary['output_shape'] = get_recursive_shape(output)
             layer_summary['nb_usages'] = 1
             layer_summary['should_print'] = type(hooked_module) not in ignore
-            layer_summary['is_unique_output'] = output not in known_outputs
-            if output not in known_outputs:
+            layer_summary['is_unique_output'] = isinstance(output, list) or (output not in known_outputs)
+            if (not isinstance(output, list)) and (output not in known_outputs):
                 known_outputs.add(output)
 
             params = 0
