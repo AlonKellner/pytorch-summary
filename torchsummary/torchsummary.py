@@ -65,7 +65,7 @@ def get_details_formatted_summary(details):
 
 def get_recursive_layer_details(layer_name, output_shape, nb_params, nb_usages):
     if isinstance(output_shape, dict):
-        sub_lines = [(get_recursive_layer_details(key+': ', sub_output, '', ''))
+        sub_lines = [(get_recursive_layer_details(key + ': ', sub_output, '', ''))
                      for key, sub_output in output_shape.items()]
         sub_lines = [line for lines in sub_lines for line in lines]
         return [get_layer_details(layer_name, 'dict', nb_params, nb_usages),
@@ -180,12 +180,12 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
             layer_summary['output_shape'] = get_recursive_shape(output)
             layer_summary['nb_usages'] = 1
             layer_summary['should_print'] = type(hooked_module) not in ignore
-            if isinstance(output, list):
-                layer_summary['is_unique_output'] = True
-            else:
+            try:
                 layer_summary['is_unique_output'] = output not in known_outputs
                 if output not in known_outputs:
                     known_outputs.add(output)
+            except TypeError:
+                layer_summary['is_unique_output'] = True
 
             params = 0
             params_trainable = 0
@@ -203,7 +203,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     # multiple inputs to the network
     if isinstance(input_size, (list, tuple)) and len(input_size) > 0:
         if not isinstance(input_size[0], (list, tuple)):
-            input_size = (input_size, )
+            input_size = (input_size,)
     elif isinstance(input_size, int):
         input_size = ((input_size,),)
     else:
@@ -241,12 +241,12 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
         h.remove()
 
     line_length = 79
-    summary_str += '-'*line_length + '\n'
+    summary_str += '-' * line_length + '\n'
     line_new = format_layer_summary('Layer (type)', 'Result Shape', 'Param #', 'Usage #')
     summary_str += line_new + '\n'
-    summary_str += '='*line_length + '\n'
+    summary_str += '=' * line_length + '\n'
     for i, current_input in enumerate(x):
-        summary_str += get_layer_formatted_summary_explicit('Input-' + chr(65+i),
+        summary_str += get_layer_formatted_summary_explicit('Input-' + chr(65 + i),
                                                             get_recursive_shape(current_input),
                                                             0,
                                                             1) \
@@ -262,7 +262,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
 
         output_shape = sum_module['output_shape']
         if sum_module['is_unique_output']:
-            total_output += get_recursive_total_size(output_shape)*sum_module['nb_usages']
+            total_output += get_recursive_total_size(output_shape) * sum_module['nb_usages']
         trainable_params += sum_module['nb_params_trainable']
         if sum_module['should_print']:
             summary_str += line_new + '\n'
@@ -277,16 +277,16 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     total_size = total_params_size + total_output_size + total_input_size
     total_training_size = total_params_size + total_training_output_size + total_input_size
 
-    summary_str += '='*line_length + '\n'
+    summary_str += '=' * line_length + '\n'
     summary_str += 'Total params: {0:,}'.format(total_params) + '\n'
     summary_str += 'Trainable params: {0:,}'.format(trainable_params) + '\n'
     summary_str += 'Non-trainable params: {0:,}'.format(total_params - trainable_params) + '\n'
-    summary_str += '-'*line_length + '\n'
+    summary_str += '-' * line_length + '\n'
     summary_str += 'Input size (MB): %0.2f' % total_input_size + '\n'
     summary_str += 'Forward/backward pass size (MB): %0.2f' % total_output_size + '\n'
     summary_str += 'Params size (MB): %0.2f' % total_params_size + '\n'
     summary_str += 'Estimated Training Size (MB): %0.2f   (batch size: %d)' % (total_training_size, batch_size) + '\n'
     summary_str += 'Estimated Inference Size (MB): %0.2f' % total_size + '\n'
-    summary_str += '-'*line_length
+    summary_str += '-' * line_length
     # return summary
     return summary_str, (total_params, trainable_params)
