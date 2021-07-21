@@ -163,6 +163,9 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
 
     summary_str = ''
 
+    if ignore is None:
+        ignore = []
+
     def register_hook(module):
         def hook(hooked_module, module_input, output):
             if hooked_module in full_summary:
@@ -177,6 +180,9 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
             layer_summary['output_shape'] = get_recursive_shape(output)
             layer_summary['nb_usages'] = 1
             layer_summary['should_print'] = type(hooked_module) not in ignore
+            layer_summary['is_unique_output'] = output not in known_outputs
+            if output not in known_outputs:
+                known_outputs.add(output)
 
             params = 0
             params_trainable = 0
@@ -217,6 +223,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
 
     # create properties
     full_summary = collections.OrderedDict()
+    known_outputs = set()
     hooks = []
 
     # register hook
@@ -251,7 +258,8 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
         total_params += sum_module['nb_params']
 
         output_shape = sum_module['output_shape']
-        total_output += get_recursive_total_size(output_shape)*sum_module['nb_usages']
+        if sum_module['is_unique_output']:
+            total_output += get_recursive_total_size(output_shape)*sum_module['nb_usages']
         trainable_params += sum_module['nb_params_trainable']
         if sum_module['should_print']:
             summary_str += line_new + '\n'
