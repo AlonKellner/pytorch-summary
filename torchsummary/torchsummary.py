@@ -104,7 +104,7 @@ def format_layer_name(layer_name):
 
 
 def format_layer_summary(layer_display, output_shape, nb_params, nb_usages=''):
-    line_new = "{:>20}      {:<25} {:>15} {:>10}".format(
+    line_new = '{:>20}      {:<25} {:>15} {:>10}'.format(
         layer_display,
         str(output_shape),
         nb_params,
@@ -113,7 +113,7 @@ def format_layer_summary(layer_display, output_shape, nb_params, nb_usages=''):
     return line_new
 
 
-def summary(model, input_size, batch_size=-1, device='cuda:0', dtypes=None):
+def summary(model, input_size, batch_size=-1, device='cuda:0', dtypes=None, ignore=None):
     '''Keras-style torch summary
     Iterate the whole pytorch model and summarize the infomation as a Keras-style
     text report. The output would be store in a str.
@@ -126,6 +126,7 @@ def summary(model, input_size, batch_size=-1, device='cuda:0', dtypes=None):
         device: a str or torch.device. Should be set according to the deployed
                 device of the argument "model".
         dtype: a list or torch data type for each input variable.
+        ignore: a list of module types to exclude from summary printing.
     Returns:
         1. tensor, total parameter numbers.
         2. tensor, trainable parameter numbers.
@@ -133,13 +134,13 @@ def summary(model, input_size, batch_size=-1, device='cuda:0', dtypes=None):
     if isinstance(device, str):
         device = torch.device(device)
     result, params_info = summary_string(
-        model, input_size, batch_size, device, dtypes)
+        model, input_size, batch_size, device, dtypes, ignore)
     print(result)
 
     return params_info
 
 
-def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=None):
+def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=None, ignore=None):
     '''Keras-style torch summary (string output)
     Iterate the whole pytorch model and summarize the infomation as a Keras-style
     text report. The output would be store in a str.
@@ -152,6 +153,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
         device: a str or torch.device. Should be set according to the deployed
                 device of the argument "model".
         dtype: a list or torch data type for each input variable.
+        ignore: a list of module types to exclude from summary printing.
     Returns:
         1. str, the summary text report.
         2. tuple, (total parameter numbers, trainable parameter numbers)
@@ -166,14 +168,15 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
             if hooked_module in full_summary:
                 full_summary[hooked_module]['nb_usages'] += 1
                 return
-            class_name = str(hooked_module.__class__).split(".")[-1].split("'")[0]
+            class_name = str(hooked_module.__class__).split('.')[-1].split("'")[0]
             module_idx = len(full_summary)
 
             layer_summary = collections.OrderedDict()
-            layer_summary["name_display"] = '{name:s}-{idx:d}'.format(name=class_name, idx=module_idx + 1)
-            layer_summary["input_shape"] = get_recursive_shape(module_input)
-            layer_summary["output_shape"] = get_recursive_shape(output)
-            layer_summary["nb_usages"] = 1
+            layer_summary['name_display'] = '{name:s}-{idx:d}'.format(name=class_name, idx=module_idx + 1)
+            layer_summary['input_shape'] = get_recursive_shape(module_input)
+            layer_summary['output_shape'] = get_recursive_shape(output)
+            layer_summary['nb_usages'] = 1
+            layer_summary['should_print'] = type(hooked_module) not in ignore
 
             params = 0
             params_trainable = 0
@@ -181,8 +184,8 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
                 nb_param = torch.prod(torch.LongTensor(list(param.size()))).item()
                 params += nb_param
                 params_trainable += nb_param if param.requires_grad else 0
-            layer_summary["nb_params"] = params
-            layer_summary["nb_params_trainable"] = params_trainable
+            layer_summary['nb_params'] = params
+            layer_summary['nb_params_trainable'] = params_trainable
             full_summary[hooked_module] = layer_summary
 
         if (not isinstance(module, nn.Sequential) and not isinstance(module, nn.ModuleList)):
@@ -228,10 +231,10 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
         h.remove()
 
     line_length = 79
-    summary_str += '-'*line_length + "\n"
-    line_new = format_layer_summary("Layer (type)", "Result Shape", "Param #", "Usage #")
-    summary_str += line_new + "\n"
-    summary_str += '='*line_length + "\n"
+    summary_str += '-'*line_length + '\n'
+    line_new = format_layer_summary('Layer (type)', 'Result Shape', 'Param #', 'Usage #')
+    summary_str += line_new + '\n'
+    summary_str += '='*line_length + '\n'
     for i, current_input in enumerate(x):
         summary_str += get_layer_formatted_summary_explicit('Input-' + chr(65+i),
                                                             get_recursive_shape(current_input),
@@ -245,12 +248,13 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
         # input_shape, output_shape, trainable, nb_params
         sum_module = full_summary[module_summary]
         line_new = get_layer_formatted_summary(sum_module)
-        total_params += sum_module["nb_params"]
+        total_params += sum_module['nb_params']
 
-        output_shape = sum_module["output_shape"]
+        output_shape = sum_module['output_shape']
         total_output += get_recursive_total_size(output_shape)*sum_module['nb_usages']
-        trainable_params += sum_module["nb_params_trainable"]
-        summary_str += line_new + "\n"
+        trainable_params += sum_module['nb_params_trainable']
+        if sum_module['should_print']:
+            summary_str += line_new + '\n'
 
     # assume 4 bytes/number (float on cuda).
     batch_size = batch_size if batch_was_specified else 1
@@ -262,16 +266,16 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     total_size = total_params_size + total_output_size + total_input_size
     total_training_size = total_params_size + total_training_output_size + total_input_size
 
-    summary_str += '='*line_length + "\n"
-    summary_str += "Total params: {0:,}".format(total_params) + "\n"
-    summary_str += "Trainable params: {0:,}".format(trainable_params) + "\n"
-    summary_str += "Non-trainable params: {0:,}".format(total_params - trainable_params) + "\n"
-    summary_str += '-'*line_length + "\n"
-    summary_str += "Input size (MB): %0.2f" % total_input_size + "\n"
-    summary_str += "Forward/backward pass size (MB): %0.2f" % total_output_size + "\n"
-    summary_str += "Params size (MB): %0.2f" % total_params_size + "\n"
-    summary_str += "Estimated Training Size (MB): %0.2f   (batch size: %d)" % (total_training_size, batch_size) + "\n"
-    summary_str += "Estimated Inference Size (MB): %0.2f" % total_size + "\n"
+    summary_str += '='*line_length + '\n'
+    summary_str += 'Total params: {0:,}'.format(total_params) + '\n'
+    summary_str += 'Trainable params: {0:,}'.format(trainable_params) + '\n'
+    summary_str += 'Non-trainable params: {0:,}'.format(total_params - trainable_params) + '\n'
+    summary_str += '-'*line_length + '\n'
+    summary_str += 'Input size (MB): %0.2f' % total_input_size + '\n'
+    summary_str += 'Forward/backward pass size (MB): %0.2f' % total_output_size + '\n'
+    summary_str += 'Params size (MB): %0.2f' % total_params_size + '\n'
+    summary_str += 'Estimated Training Size (MB): %0.2f   (batch size: %d)' % (total_training_size, batch_size) + '\n'
+    summary_str += 'Estimated Inference Size (MB): %0.2f' % total_size + '\n'
     summary_str += '-'*line_length
     # return summary
     return summary_str, (total_params, trainable_params)

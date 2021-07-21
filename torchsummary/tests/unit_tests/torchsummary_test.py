@@ -15,7 +15,7 @@ class torchsummaryTests(unittest.TestCase):
     def test_single_input(self):
         model = SingleInputNet()
         input = (1, 28, 28)
-        total_params, trainable_params = summary(model, input, device="cpu")
+        total_params, trainable_params = summary(model, input, device="cpu", ignore=[SingleInputNet])
         self.assertEqual(total_params, 21840)
         self.assertEqual(trainable_params, 21840)
 
