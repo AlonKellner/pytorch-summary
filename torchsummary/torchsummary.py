@@ -8,6 +8,8 @@ import torch.nn as nn
 def long_sum(v):
     if not all(map(lambda x: isinstance(x, int), v)):
         raise ValueError('The long_sum only supports the sequence with all int elements.')
+    if len(v) == 0:
+        return 0
     return functools.reduce(lambda x, y: x + y, v)
 
 
