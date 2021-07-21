@@ -180,7 +180,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
             layer_summary['output_shape'] = get_recursive_shape(output)
             layer_summary['nb_usages'] = 1
             layer_summary['should_print'] = type(hooked_module) not in ignore
-            if not hasattr(output, '__hash__'):
+            if isinstance(output, list):
                 layer_summary['is_unique_output'] = True
             else:
                 layer_summary['is_unique_output'] = output not in known_outputs
