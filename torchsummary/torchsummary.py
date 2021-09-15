@@ -4,6 +4,8 @@ import collections
 import torch
 import torch.nn as nn
 
+from .input_size import InputSize
+
 
 def long_sum(v):
     if not all(map(lambda x: isinstance(x, int), v)):
@@ -21,7 +23,7 @@ def long_prod(v):
 
 def get_recursive_total_size(object_with_size):
     if isinstance(object_with_size, dict):
-        return long_sum(map(get_recursive_total_size, object_with_size.values()))
+        return long_sum(list(map(get_recursive_total_size, object_with_size.values())))
     elif isinstance(object_with_size, int):
         return object_with_size
     elif isinstance(object_with_size, list):
@@ -115,6 +117,26 @@ def format_layer_summary(layer_display, output_shape, nb_params, nb_usages=''):
     return line_new
 
 
+def generate_random_recursive_input(input_size, dtypes, batch_size, device):
+    if isinstance(input_size, dict):
+        if dtypes is None:
+            dtypes = {key: None for key, value in input_size.items()}
+        return {key: generate_random_recursive_input(sub_object, dtypes[key], batch_size, device) for key, sub_object in input_size.items()}
+    elif isinstance(input_size, list):
+        if dtypes is None:
+            dtypes = [None for value in input_size]
+        return [generate_random_recursive_input(sub_input_size, sub_dtypes, batch_size, device) for sub_input_size, sub_dtypes in zip(input_size, dtypes)]
+    elif isinstance(input_size, tuple) and not isinstance(input_size[0], int):
+        if dtypes is None:
+            dtypes = tuple(None for value in input_size)
+        return tuple(generate_random_recursive_input(sub_input_size, sub_dtypes, batch_size, device) for sub_input_size, sub_dtypes in zip(input_size, dtypes))
+    else:
+        if dtypes is None:
+            dtypes = torch.FloatTensor
+        random_tensor = torch.rand(batch_size, *input_size).type(dtypes).to(device=device)
+        return random_tensor
+
+
 def summary(model, input_size, batch_size=-1, device='cuda:0', dtypes=None, ignore=None):
     '''Keras-style torch summary
     Iterate the whole pytorch model and summarize the infomation as a Keras-style
@@ -203,7 +225,9 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
             hooks.append(module.register_forward_hook(hook))
 
     # multiple inputs to the network
-    if isinstance(input_size, (list, tuple)) and len(input_size) > 0:
+    if isinstance(input_size, InputSize):
+        input_size = tuple(input_size.args)
+    elif isinstance(input_size, (list, tuple)) and len(input_size) > 0:
         if not isinstance(input_size[0], (list, tuple)):
             input_size = (input_size,)
     elif isinstance(input_size, int):
@@ -212,19 +236,13 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
         raise ValueError('The argument "input_size" is not a tuple of a sequence of tuple. Given "{0}".'
                          .format(input_size))
 
-    if dtypes is None:
-        dtypes = [torch.FloatTensor] * len(input_size)
-    if len(dtypes) != len(input_size):
-        raise ValueError('The lengths of the arguments "input_size" and "dtypes" does not correspond to each other.')
-
     # batch_size of 2 for batchnorm
     batch_was_specified = not batch_size == -1
     if not batch_was_specified:
         batch_size_ = 2
     else:
         batch_size_ = batch_size
-    x = tuple(torch.rand(batch_size_, *in_size).type(dtype).to(device=device)
-              for in_size, dtype in zip(input_size, dtypes))
+    x = generate_random_recursive_input(input_size, dtypes, batch_size_, device)
 
     # create properties
     full_summary = collections.OrderedDict()
@@ -272,7 +290,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     # assume 4 bytes/number (float on cuda).
     batch_size = batch_size if batch_was_specified else 1
     total_training_output = total_output * batch_size
-    total_input_size = abs(long_sum(list(map(long_prod, input_size))) * batch_size * 4. / (1024 ** 2.))
+    total_input_size = abs(get_recursive_total_size(input_size) * batch_size * 4. / (1024 ** 2.))
     total_output_size = abs(total_output * 4. / (1024 ** 2.))
     total_training_output_size = abs(2. * total_training_output * 4. / (1024 ** 2.))  # x2 for gradients
     total_params_size = abs(total_params * 4. / (1024 ** 2.))

@@ -1,11 +1,11 @@
 import unittest
-from torchsummary import summary, summary_string
+from torchsummary import summary, summary_string, InputSize
 from torchsummary.tests.test_models.test_model import \
     SingleInputNet, \
     MultipleInputNet, \
     MultipleInputNetDifferentDtypes, \
     MultipleOutputNet, \
-    ParameterReuseNet
+    ParameterReuseNet, ComplexInputNet
 import torch
 
 gpu_if_available = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -32,6 +32,15 @@ class torchsummaryTests(unittest.TestCase):
         input2 = (1, 300)
         total_params, trainable_params = summary(
             model, [input1, input2], device="cpu")
+        self.assertEqual(total_params, 31120)
+        self.assertEqual(trainable_params, 31120)
+
+    def test_complex_input(self):
+        model = ComplexInputNet()
+        input1 = (1, 300)
+        input2 = (1, 300)
+        total_params, trainable_params = summary(
+            model, InputSize({'x1': input1, 'x2': input2}), device="cpu")
         self.assertEqual(total_params, 31120)
         self.assertEqual(trainable_params, 31120)
 
