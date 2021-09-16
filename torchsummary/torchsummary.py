@@ -135,7 +135,7 @@ def generate_random_recursive_input(input_size, dtypes, batch_size, device):
         if dtypes is None:
             dtypes = torch.FloatTensor
         if isinstance(dtypes, RandInt):
-            random_tensor = torch.randint(dtypes.low, dtypes.high, dtype=dtypes.type).to(device=device)
+            random_tensor = torch.randint(low=dtypes.low, high=dtypes.high, size=(batch_size, *input_size), dtype=dtypes.type).to(device=device)
         else:
             random_tensor = torch.rand(batch_size, *input_size).type(dtypes).to(device=device)
         return random_tensor
