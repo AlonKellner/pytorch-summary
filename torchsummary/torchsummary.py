@@ -4,6 +4,7 @@ import collections
 import torch
 import torch.nn as nn
 
+from .dtypes import RandInt
 from .input_size import InputSize
 
 
@@ -119,21 +120,24 @@ def format_layer_summary(layer_display, output_shape, nb_params, nb_usages=''):
 
 def generate_random_recursive_input(input_size, dtypes, batch_size, device):
     if isinstance(input_size, dict):
-        if dtypes is None:
-            dtypes = {key: None for key, value in input_size.items()}
+        if isinstance(dtypes, dict):
+            dtypes = {key: dtypes for key, value in input_size.items()}
         return {key: generate_random_recursive_input(sub_object, dtypes[key], batch_size, device) for key, sub_object in input_size.items()}
     elif isinstance(input_size, list):
-        if dtypes is None:
-            dtypes = [None for value in input_size]
+        if isinstance(dtypes, list):
+            dtypes = [dtypes for value in input_size]
         return [generate_random_recursive_input(sub_input_size, sub_dtypes, batch_size, device) for sub_input_size, sub_dtypes in zip(input_size, dtypes)]
     elif isinstance(input_size, tuple) and not isinstance(input_size[0], int):
-        if dtypes is None:
-            dtypes = tuple(None for value in input_size)
+        if isinstance(dtypes, tuple):
+            dtypes = tuple(dtypes for value in input_size)
         return tuple(generate_random_recursive_input(sub_input_size, sub_dtypes, batch_size, device) for sub_input_size, sub_dtypes in zip(input_size, dtypes))
     else:
         if dtypes is None:
             dtypes = torch.FloatTensor
-        random_tensor = torch.rand(batch_size, *input_size).type(dtypes).to(device=device)
+        if isinstance(input_size, RandInt):
+            random_tensor = torch.randint(dtypes.low, dtypes.high, dtype=dtypes.type)
+        else:
+            random_tensor = torch.rand(batch_size, *input_size).type(dtypes).to(device=device)
         return random_tensor
 
 
