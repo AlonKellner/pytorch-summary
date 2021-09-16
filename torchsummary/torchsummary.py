@@ -120,15 +120,15 @@ def format_layer_summary(layer_display, output_shape, nb_params, nb_usages=''):
 
 def generate_random_recursive_input(input_size, dtypes, batch_size, device):
     if isinstance(input_size, dict):
-        if isinstance(dtypes, dict):
+        if not isinstance(dtypes, dict):
             dtypes = {key: dtypes for key, value in input_size.items()}
         return {key: generate_random_recursive_input(sub_object, dtypes[key], batch_size, device) for key, sub_object in input_size.items()}
     elif isinstance(input_size, list):
-        if isinstance(dtypes, list):
+        if not isinstance(dtypes, list):
             dtypes = [dtypes for value in input_size]
         return [generate_random_recursive_input(sub_input_size, sub_dtypes, batch_size, device) for sub_input_size, sub_dtypes in zip(input_size, dtypes)]
     elif isinstance(input_size, tuple) and not isinstance(input_size[0], int):
-        if isinstance(dtypes, tuple):
+        if not isinstance(dtypes, tuple):
             dtypes = tuple(dtypes for value in input_size)
         return tuple(generate_random_recursive_input(sub_input_size, sub_dtypes, batch_size, device) for sub_input_size, sub_dtypes in zip(input_size, dtypes))
     else:
