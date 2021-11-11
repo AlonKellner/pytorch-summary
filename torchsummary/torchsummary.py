@@ -293,13 +293,14 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
 
     # assume 4 bytes/number (float on cuda).
     batch_size = batch_size if batch_was_specified else 1
-    total_training_output = total_output * batch_size
-    total_input_size = abs(get_recursive_total_size(input_size) * batch_size * 4. / (1024 ** 2.))
+    total_input = get_recursive_total_size(input_size)
+    total = total_params + total_output + total_input
+    total_size = abs(total * 4. / (1024 ** 2.))
+    total_training_size = total_size * batch_size * 2  # x2 for gradients
+
+    total_input_size = abs(total_input * 4. / (1024 ** 2.))
     total_output_size = abs(total_output * 4. / (1024 ** 2.))
-    total_training_output_size = abs(2. * total_training_output * 4. / (1024 ** 2.))  # x2 for gradients
     total_params_size = abs(total_params * 4. / (1024 ** 2.))
-    total_size = total_params_size + total_output_size + total_input_size
-    total_training_size = total_params_size + total_training_output_size + total_input_size
 
     summary_str += '=' * line_length + '\n'
     summary_str += 'Total params: {0:,}'.format(total_params) + '\n'
@@ -307,7 +308,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     summary_str += 'Non-trainable params: {0:,}'.format(total_params - trainable_params) + '\n'
     summary_str += '-' * line_length + '\n'
     summary_str += 'Input size (MB): %0.2f' % total_input_size + '\n'
-    summary_str += 'Forward/backward pass size (MB): %0.2f' % total_output_size + '\n'
+    summary_str += 'Forward/Backward pass size (MB): %0.2f' % total_output_size + '\n'
     summary_str += 'Params size (MB): %0.2f' % total_params_size + '\n'
     summary_str += 'Estimated Training Size (MB): %0.2f   (batch size: %d)' % (total_training_size, batch_size) + '\n'
     summary_str += 'Estimated Inference Size (MB): %0.2f' % total_size + '\n'
