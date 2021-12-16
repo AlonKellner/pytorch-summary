@@ -161,11 +161,11 @@ def summary(model, input_size, batch_size=-1, device='cuda:0', dtypes=None, igno
     '''
     if isinstance(device, str):
         device = torch.device(device)
-    result, params_info = summary_string(
+    result, params_info, result_size = summary_string(
         model, input_size, batch_size, device, dtypes, ignore)
     print(result)
 
-    return params_info
+    return params_info, result_size
 
 
 def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=None, ignore=None):
@@ -258,7 +258,7 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
 
     # make a forward pass
     # print(x.shape)
-    model(*x)
+    x_result = model(*x)
 
     # remove these hooks
     for h in hooks:
@@ -314,4 +314,4 @@ def summary_string(model, input_size, batch_size=-1, device='cuda:0', dtypes=Non
     summary_str += 'Estimated Inference Size (MB): %0.2f' % total_size + '\n'
     summary_str += '-' * line_length
     # return summary
-    return summary_str, (total_params, trainable_params)
+    return summary_str, (total_params, trainable_params), x_result
